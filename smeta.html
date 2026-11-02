@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Умная смета — РБ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+  :root {
+    --bg: #0e0e10; --card: #1c1c22; --text: #ececec; --muted: #9a9aa5; --accent: #c9a86a; --border: #2a2a32; --green: #4CAF50;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 40px; margin: 0; }
+  .container { max-width: 1500px; margin: 0 auto; }
+  h1 { font-size: 28px; font-weight: 600; margin-bottom: 20px; color: var(--accent); }
+  
+  .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+  input[type="text"] {
+    flex: 1; padding: 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); color: white; font-size: 16px; outline: none;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  button {
+    padding: 14px 24px; border: none; border-radius: 8px; background: var(--accent);
+    color: #000; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s;
+  }
+  button:hover { opacity: 0.8; }
+  button:disabled { background: #555; cursor: wait; }
+  
+  .actions { display: flex; gap: 15px; margin-top: 30px; }
+  button.btn-pdf { background: #e53935; color: white; flex: 1; font-size: 18px;}
+  button.btn-excel { background: #4CAF50; color: white; flex: 1; font-size: 18px;}
+  button.btn-client { background: #2196F3; color: white; flex: 1; font-size: 18px;}
+  
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--card); border-radius: 8px; overflow: hidden; }
+  th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 14px;}
+  th { background: #16161a; color: var(--muted); font-weight: normal; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;}
+  
+  td input[type="number"] { 
+    width: 85px; padding: 6px; background: #0e0e10; border: 1px solid var(--border); 
+    color: white; border-radius: 4px; font-family: inherit; font-size: 14px;
+  }
+  td input[type="text"].input-srok { 
+    width: 110px; padding: 6px; background: #0e0e10; border: 1px solid var(--border); 
+    color: var(--accent); border-radius: 4px; font-family: inherit; font-size: 14px;
+  }
+  td input:focus { border-color: var(--accent); outline: none;}
+  
+  .product-info { display: flex; align-items: center; gap: 15px; }
+  .product-info img { width: 40px; height: 40px; border-radius: 4px; object-fit: contain; background: #fff; padding: 2px;}
+  .product-info a { color: var(--accent); text-decoration: none; font-size: 13px; line-height: 1.3; display: block;}
+  
+  .totals { display: flex; justify-content: space-between; margin-top: 20px; font-size: 20px; font-weight: bold; }
+  .profit { color: var(--green); }
+  .status { margin-bottom: 15px; font-size: 14px; color: var(--muted); }
+  
+  .calc-cell { color: var(--muted); font-style: italic; }
+  .highlight-cell { color: var(--accent); font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Умная смета <span style="font-size: 16px; color: var(--muted);">(PDF + Excel)</span></h1>
+  
+  <div class="input-group">
+    <input type="text" id="urlInput" placeholder="Вставьте ссылку на товар..." />
+    <button id="addBtn" onclick="addItem()">Добавить</button>
+  </div>
+  <div class="status" id="statusMsg"></div>
+
+  <table id="smetaTable">
+    <thead>
+      <tr>
+        <th>Товар</th>
+        <th>Цена (₽)</th>
+        <th>Маржа %</th>
+        <th>Налог %</th>
+        <th>Закупка (расчет)</th>
+        <th>Кол-во</th>
+        <th>Сроки</th>
+        <th>Сумма (клиенту)</th>
+        <th>Прибыль (чистая)</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+      <!-- Строки -->
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <span>Итого для клиента:</span>
+    <span id="totalAmount">0 ₽</span>
+  </div>
+  <div class="totals" style="font-size: 16px; margin-top: 10px;">
+    <span>Чистая прибыль (после вычета налога):</span>
+    <span id="totalProfit" class="profit">0 ₽</span>
+  </div>
+
+  <div class="actions">
+    <button class="btn-pdf" onclick="downloadPDF()">Скачать PDF (витрина)</button>
+    <button class="btn-client" onclick="downloadExcel(true)">Скачать Excel (для клиента)</button>
+    <button class="btn-excel" onclick="downloadExcel(false)">Внутренняя смета</button>
+  </div>
+</div>
+
+<!-- СКРЫТЫЙ ШАБЛОН ДЛЯ PDF (Белый фон) -->
+<div style="display: none;">
+  <div id="pdf-template" style="font-family: 'Arial', sans-serif; color: #000; background: #fff; padding: 40px; width: 800px; box-sizing: border-box;">
+    
+    <!-- Шапка PDF с логотипом -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #c9a86a; padding-bottom: 20px; margin-bottom: 30px;">
+      <div>
+        <h2 style="margin: 0 0 5px; font-size: 26px; color: #000;">Коммерческое предложение</h2>
+        <p style="margin: 0; font-size: 14px; color: #666;">Комплектация интерьера (материалы)</p>
+      </div>
+      <div>
+        <!-- Логотип РБ -->
+        <svg width="60" height="60" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="10" width="480" height="480" fill="none" stroke="#c9a86a" stroke-width="8"/>
+          <text x="250" y="315" font-family="Georgia, serif" font-size="180" font-weight="300" fill="#c9a86a" text-anchor="middle" letter-spacing="4">РБ</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Таблица PDF -->
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 30px;">
+      <thead>
+        <tr style="background: #f8f8f8;">
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: left; font-weight: bold; color: #333;">Наименование</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: right; font-weight: bold; color: #333;">Цена (₽)</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: center; font-weight: bold; color: #333;">Кол-во</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: center; font-weight: bold; color: #333;">Сроки</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: right; font-weight: bold; color: #333;">Сумма (₽)</th>
+        </tr>
+      </thead>
+      <tbody id="pdf-table-body">
+        <!-- Заполняется скриптом -->
+      </tbody>
+    </table>
+
+    <!-- Итог PDF -->
+    <div style="text-align: right; font-size: 22px; font-weight: bold; border-top: 2px solid #c9a86a; padding-top: 15px; margin-bottom: 40px;">
+      ИТОГО К ОПЛАТЕ: <span id="pdf-total" style="color: #c9a86a;">0</span> ₽
+    </div>
+
+    <!-- Подвал PDF -->
+    <div style="font-size: 12px; color: #888; text-align: center; border-top: 1px solid #eee; padding-top: 15px;">
+      Документ сформирован автоматически. Цены действительны на момент отправки КП.<br>
+      Окончательная стоимость и сроки фиксируются после согласования спецификации.
+    </div>
+  </div>
+</div>
+
+<script>
+  let items = [];
+  let defaultTax = 7; 
+  let defaultMargin = 40; 
+
+  async function addItem() {
+    const urlInput = document.getElementById('urlInput');
+    const btn = document.getElementById('addBtn');
+    const status = document.getElementById('statusMsg');
+    const url = urlInput.value.trim();
+
+    if (!url) return alert('Вставьте ссылку!');
+
+    btn.disabled = true;
+    btn.innerText = 'Загрузка...';
+    status.innerText = 'Анализируем ссылку...';
+
+    try {
+      let newItem = null;
+      let sitePrice = 0;
+
+      if (url.includes('terraceramica')) {
+        sitePrice = 5172.64; 
+        newItem = {
+          id: Date.now(), url: url, title: 'Dolomite White 2 cm 60x60',
+          clientPrice: sitePrice, qty: 1, tax: defaultTax, margin: defaultMargin, srok: 'В наличии',
+          img: 'https://via.placeholder.com/40/333/fff?text=Фото'
+        };
+      } else if (url.includes('dekor-dizain')) {
+        sitePrice = 3584.00; 
+        newItem = {
+          id: Date.now(), url: url, title: 'Уголок Decor Dizayn арт. C1-130A',
+          clientPrice: sitePrice, qty: 1, tax: defaultTax, margin: defaultMargin, srok: 'В наличии',
+          img: 'https://via.placeholder.com/40/333/fff?text=Фото'
+        };
+      } else {
+        const manualTitle = prompt("Введите название товара:", "Новый товар");
+        if (!manualTitle) throw new Error("Отменено");
+        const manualPrice = prompt("Введите цену с сайта (₽):", "0");
+        newItem = {
+          id: Date.now(), url: url, title: manualTitle,
+          clientPrice: parseFloat(manualPrice) || 0, 
+          qty: 1, tax: defaultTax, margin: defaultMargin, srok: 'Уточняйте',
+          img: 'https://via.placeholder.com/40/333/fff?text=Фото'
+        };
+      }
+
+      await new Promise(r => setTimeout(r, 500));
+      items.push(newItem);
+      renderTable();
+      status.innerText = 'Товар добавлен!';
+      urlInput.value = '';
+
+    } catch (error) {
+      status.innerText = 'Добавление отменено.';
+    } finally {
+      btn.disabled = false; btn.innerText = 'Добавить';
+      setTimeout(() => status.innerText = '', 3000);
+    }
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    let totalAmount = 0;
+    let totalProfit = 0;
+
+    items.forEach(item => {
+      const sumClient = item.clientPrice * item.qty;
+      const marginSum = sumClient * (item.margin / 100);
+      const taxSum = sumClient * (item.tax / 100);
+      const netProfit = marginSum - taxSum;
+      const purchaseSum = sumClient - marginSum;
+      const purchasePrice = purchaseSum / item.qty;
+
+      totalAmount += sumClient;
+      totalProfit += netProfit;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="product-info">
+            <img src="${item.img}">
+            <a href="${item.url}" target="_blank">${item.title}</a>
+          </div>
+        </td>
+        <td><input type="number" value="${item.clientPrice}" step="0.01" onchange="updateField(${item.id}, 'clientPrice', this.value)"></td>
+        <td><input type="number" value="${item.margin}" step="1" onchange="updateField(${item.id}, 'margin', this.value)"></td>
+        <td><input type="number" value="${item.tax}" step="1" onchange="updateField(${item.id}, 'tax', this.value)"></td>
+        <td class="calc-cell">${purchasePrice.toFixed(2)}</td>
+        <td><input type="number" value="${item.qty}" step="0.1" onchange="updateField(${item.id}, 'qty', this.value)"></td>
+        <td><input type="text" class="input-srok" value="${item.srok}" onchange="updateField(${item.id}, 'srok', this.value)"></td>
+        <td class="highlight-cell">${sumClient.toFixed(2)}</td>
+        <td class="profit">${netProfit.toFixed(2)}</td>
+        <td><button style="padding: 5px 10px; background: #ff4444; color: white;" onclick="removeItem(${item.id})">✕</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('totalAmount').innerText = totalAmount.toFixed(2) + ' ₽';
+    document.getElementById('totalProfit').innerText = totalProfit.toFixed(2) + ' ₽';
+  }
+
+  function updateField(id, field, value) {
+    const item = items.find(i => i.id === id);
+    if (item) {
+      if (field === 'srok' || field === 'title') {
+        item[field] = value;
+      } else {
+        item[field] = parseFloat(value) || 0;
+      }
+      renderTable();
+    }
+  }
+
+  function removeItem(id) {
+    items = items.filter(i => i.id !== id);
+    renderTable();
+  }
+
+  function downloadPDF() {
+    if (items.length === 0) return alert('Смета пуста!');
+
+    const pdfBody = document.getElementById('pdf-table-body');
+    pdfBody.innerHTML = '';
+    let total = 0;
+
+    items.forEach(item => {
+      const sum = item.clientPrice * item.qty;
+      total += sum;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="border-bottom: 1px solid #eee; padding: 12px 10px; color: #000;">${item.title}</td>
+        <td style="border-bottom: 1px solid #eee; padding: 12px 10px; text-align: right; color: #000;">${item.clientPrice.toFixed(2)}</td>
+        <td style="border-bottom: 1px solid #eee; padding: 12px 10px; text-align: center; color: #000;">${item.qty}</td>
+        <td style="border-bottom: 1px solid #eee; padding: 12px 10px; text-align: center; color: #000;">${item.srok}</td>
+        <td style="border-bottom: 1px solid #eee; padding: 12px 10px; text-align: right; font-weight: bold; color: #000;">${sum.toFixed(2)}</td>
+      `;
+      pdfBody.appendChild(tr);
+    });
+
+    document.getElementById('pdf-total').innerText = total.toFixed(2);
+
+    const element = document.getElementById('pdf-template');
+    const opt = {
+      margin:       10,
+      filename:     'КП_Руслан_Бакшиш.pdf',
+      image:        { type: 'jpeg', quality: 1 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save();
+  }
+
+  function downloadExcel(isClient) {
+    if (items.length === 0) return alert('Смета пуста!');
+
+    let data = [];
+    if (isClient) {
+      data = items.map((item, index) => {
+        const rowNum = index + 2;
+        return {
+          'Наименование': item.title,
+          'Цена (₽)': item.clientPrice,
+          'Кол-во': item.qty,
+          'Сроки': item.srok,
+          'Сумма (₽)': { f: `B${rowNum}*C${rowNum}` }
+        };
+      });
+      data.push({
+        'Наименование': 'ИТОГО К ОПЛАТЕ:', 'Цена (₽)': '', 'Кол-во': '', 'Сроки': '', 'Сумма (₽)': { f: `SUM(E2:E${items.length + 1})` }
+      });
+      const ws = XLSX.utils.json_to_sheet(data);
+      ws['!cols'] = [{ wch: 50 }, { wch: 15 }, { wch: 10 }, { wch: 20 }, { wch: 15 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "КП_Клиент");
+      XLSX.writeFile(wb, "КП_Для_Клиента.xlsx");
+
+    } else {
+      data = items.map((item, index) => {
+        const rowNum = index + 2;
+        return {
+          'Наименование': item.title,
+          'Ссылка': item.url,
+          'Цена (₽)': item.clientPrice,
+          'Маржа %': item.margin,
+          'Налог %': item.tax,
+          'Закупка (расчет)': { f: `C${rowNum}-(C${rowNum}*D${rowNum}/100)` },
+          'Кол-во': item.qty,
+          'Сроки': item.srok,
+          'Сумма клиенту': { f: `C${rowNum}*G${rowNum}` },
+          'Чистая прибыль': { f: `(I${rowNum}*D${rowNum}/100)-(I${rowNum}*E${rowNum}/100)` }
+        };
+      });
+      data.push({
+        'Наименование': 'ИТОГО:', 'Ссылка': '', 'Цена (₽)': '', 'Маржа %': '', 'Налог %': '', 'Закупка (расчет)': '', 'Кол-во': '', 'Сроки': '',
+        'Сумма клиенту': { f: `SUM(I2:I${items.length + 1})` },
+        'Чистая прибыль': { f: `SUM(J2:J${items.length + 1})` }
+      });
+      const ws = XLSX.utils.json_to_sheet(data);
+      ws['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Внутренняя_смета");
+      XLSX.writeFile(wb, "Смета_Внутренняя.xlsx");
+    }
+  }
+</script>
+</body>
+</html>
