@@ -57,6 +57,10 @@
   
   .calc-cell { color: var(--muted); font-style: italic; }
   .highlight-cell { color: var(--accent); font-weight: bold; }
+
+  #pdf-template th {
+    color: #c9a86a !important; 
+  }
 </style>
 </head>
 <body>
@@ -106,23 +110,20 @@
   </div>
 </div>
 
-<!-- СКРЫТЫЙ ШАБЛОН ДЛЯ PDF (Белый фон) -->
-<!-- СКРЫТЫЙ ШАБЛОН ДЛЯ PDF (Белый фон) -->
+<!-- СКРЫТЫЙ ШАБЛОН ДЛЯ PDF -->
 <div style="display: none;">
   <div id="pdf-template" style="font-family: 'Arial', sans-serif; background: #fff; color: #000; padding: 40px; width: 100%; max-width: 100%; box-sizing: border-box;">
     
     <!-- Шапка PDF -->
     <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #c9a86a; padding-bottom: 20px; margin-bottom: 30px;">
       <div>
-        <!-- Заголовок теперь черный -->
         <h2 style="margin: 0 0 5px; font-size: 26px; color: #000;">Коммерческое предложение</h2>
         <p style="margin: 0; font-size: 14px; color: #555;">Комплектация интерьера (материалы)</p>
       </div>
       <div>
-        <!-- Логотип РБ (оставляем золотым, но на белом фоне он смотрится идеально) -->
         <svg width="60" height="60" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
           <rect x="10" y="10" width="480" height="480" fill="none" stroke="#c9a86a" stroke-width="8"/>
-          <text x="250" y="315" font-family="Georgia, serif" font-size="180" font-weight="300" fill="#c9a86a" text-anchor="middle" letter-spacing="4">РБ</text>
+          <text x="250" y="315" font-family="Georgia, serif" font-size="180" font-weight="300" fill="#000000" text-anchor="middle" letter-spacing="4">РБ</text>
         </svg>
       </div>
     </div>
@@ -130,16 +131,16 @@
     <!-- Таблица PDF -->
     <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 30px; background: #fff; color: #000;">
       <thead>
-        <tr style="background: #f8f8f8;">
-          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: left; font-weight: bold; color: #000;">Наименование</th>
-          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: right; font-weight: bold; color: #000;">Цена (₽)</th>
-          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: center; font-weight: bold; color: #000;">Кол-во</th>
-          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: center; font-weight: bold; color: #000;">Сроки</th>
-          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: right; font-weight: bold; color: #000;">Сумма (₽)</th>
+        <tr style="background: #16161a;">
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: left; font-weight: bold;">Наименование</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: right; font-weight: bold;">Цена (₽)</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: center; font-weight: bold;">Кол-во</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: center; font-weight: bold;">Сроки</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: right; font-weight: bold;">Сумма (₽)</th>
         </tr>
       </thead>
       <tbody id="pdf-table-body" style="background: #fff;">
-        <!-- Строки добавляются скриптом -->
+        <!-- Заполняется скриптом -->
       </tbody>
     </table>
 
@@ -160,6 +161,27 @@
   let items = [];
   let defaultTax = 7; 
   let defaultMargin = 40; 
+
+  // Функция форматирования: если копеек нет - убирает их, если есть - оставляет точную цифру
+  function formatMoney(num) {
+    // Округляем до копеек, чтобы убрать хвосты плавающей точки
+    let rounded = Math.round(num * 100) / 100;
+    
+    // Разбиваем на целую часть и копейки
+    let parts = rounded.toString().split('.');
+    let integerPart = parts[0];
+    let decimalPart = parts[1];
+
+    // Ставим пробелы между тысячами
+  integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+    // Если копеек нет (или они равны .00), выводим только целое
+    if (!decimalPart || decimalPart === '00') {
+      return integerPart;
+    }
+    // Если копейки есть (например .50), выводим их
+    return integerPart + '.' + decimalPart;
+  }
 
   async function addItem() {
     const urlInput = document.getElementById('urlInput');
@@ -220,10 +242,13 @@
   function renderTable() {
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = '';
+    
+    // Считаем итоги с высокой точностью (без округления на каждом шаге)
     let totalAmount = 0;
     let totalProfit = 0;
 
     items.forEach(item => {
+      // Точное перемножение (без Math.round, чтобы не терять копейки при сложении)
       const sumClient = item.clientPrice * item.qty;
       const marginSum = sumClient * (item.margin / 100);
       const taxSum = sumClient * (item.tax / 100);
@@ -245,18 +270,18 @@
         <td><input type="number" value="${item.clientPrice}" step="0.01" onchange="updateField(${item.id}, 'clientPrice', this.value)"></td>
         <td><input type="number" value="${item.margin}" step="1" onchange="updateField(${item.id}, 'margin', this.value)"></td>
         <td><input type="number" value="${item.tax}" step="1" onchange="updateField(${item.id}, 'tax', this.value)"></td>
-        <td class="calc-cell">${purchasePrice.toFixed(2)}</td>
+        <td class="calc-cell">${formatMoney(purchasePrice)}</td>
         <td><input type="number" value="${item.qty}" step="0.1" onchange="updateField(${item.id}, 'qty', this.value)"></td>
         <td><input type="text" class="input-srok" value="${item.srok}" onchange="updateField(${item.id}, 'srok', this.value)"></td>
-        <td class="highlight-cell">${sumClient.toFixed(2)}</td>
-        <td class="profit">${netProfit.toFixed(2)}</td>
+        <td class="highlight-cell">${formatMoney(sumClient)}</td>
+        <td class="profit">${formatMoney(netProfit)}</td>
         <td><button style="padding: 5px 10px; background: #ff4444; color: white;" onclick="removeItem(${item.id})">✕</button></td>
       `;
       tbody.appendChild(tr);
     });
 
-    document.getElementById('totalAmount').innerText = totalAmount.toFixed(2) + ' ₽';
-    document.getElementById('totalProfit').innerText = totalProfit.toFixed(2) + ' ₽';
+    document.getElementById('totalAmount').innerText = formatMoney(totalAmount) + ' ₽';
+    document.getElementById('totalProfit').innerText = formatMoney(totalProfit) + ' ₽';
   }
 
   function updateField(id, field, value) {
@@ -290,25 +315,25 @@
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td style="border-bottom: 1px solid #eee; padding: 12px 10px; color: #000;">${item.title}</td>
-        <td style="border-bottom: 1px solid #eee; padding: 12px 10px; text-align: right; color: #000;">${item.clientPrice.toFixed(2)}</td>
+        <td style="border-bottom: 1px solid #eee; padding: 12px 10px; text-align: right; color: #000;">${formatMoney(item.clientPrice)}</td>
         <td style="border-bottom: 1px solid #eee; padding: 12px 10px; text-align: center; color: #000;">${item.qty}</td>
         <td style="border-bottom: 1px solid #eee; padding: 12px 10px; text-align: center; color: #000;">${item.srok}</td>
-        <td style="border-bottom: 1px solid #eee; padding: 12px 10px; text-align: right; font-weight: bold; color: #000;">${sum.toFixed(2)}</td>
+        <td style="border-bottom: 1px solid #eee; padding: 12px 10px; text-align: right; font-weight: bold; color: #000;">${formatMoney(sum)}</td>
       `;
       pdfBody.appendChild(tr);
     });
 
-    document.getElementById('pdf-total').innerText = total.toFixed(2);
+    document.getElementById('pdf-total').innerText = formatMoney(total);
 
     const element = document.getElementById('pdf-template');
     const opt = {
-  margin:       [10, 10, 10, 10],
-  filename:     'КП_Руслан_Бакшиш.pdf',
-  image:        { type: 'jpeg', quality: 1 },
-  html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
-  jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-  pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
-};
+      margin:       [10, 10, 10, 10],
+      filename:     'КП_Руслан_Бакшиш.pdf',
+      image:        { type: 'jpeg', quality: 1 },
+      html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+    };
 
     html2pdf().set(opt).from(element).save();
   }
@@ -325,7 +350,7 @@
           'Цена (₽)': item.clientPrice,
           'Кол-во': item.qty,
           'Сроки': item.srok,
-          'Сумма (₽)': { f: `B${rowNum}*C${rowNum}` }
+          'Сумма (₽)': { f: `B${rowNum}*C${rowNum}` } // Формула без округления
         };
       });
       data.push({
