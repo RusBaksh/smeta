@@ -108,7 +108,7 @@
 
 <!-- СКРЫТЫЙ ШАБЛОН ДЛЯ PDF (Белый фон) -->
 <div style="display: none;">
-  <div id="pdf-template" style="font-family: 'Arial', sans-serif; color: #000; background: #fff; padding: 40px; width: 800px; box-sizing: border-box;">
+  <div id="pdf-template" style="font-family: 'Arial', sans-serif; color: #000; background: #fff; padding: 40px; width: 100%; max-width: 100%; box-sizing: border-box;">
     
     <!-- Шапка PDF с логотипом -->
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #c9a86a; padding-bottom: 20px; margin-bottom: 30px;">
@@ -300,12 +300,13 @@
 
     const element = document.getElementById('pdf-template');
     const opt = {
-      margin:       10,
-      filename:     'КП_Руслан_Бакшиш.pdf',
-      image:        { type: 'jpeg', quality: 1 },
-      html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+  margin:       [10, 10, 10, 10],
+  filename:     'КП_Руслан_Бакшиш.pdf',
+  image:        { type: 'jpeg', quality: 1 },
+  html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
+  jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+  pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+};
 
     html2pdf().set(opt).from(element).save();
   }
