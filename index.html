@@ -107,17 +107,19 @@
 </div>
 
 <!-- СКРЫТЫЙ ШАБЛОН ДЛЯ PDF (Белый фон) -->
+<!-- СКРЫТЫЙ ШАБЛОН ДЛЯ PDF (Белый фон) -->
 <div style="display: none;">
-  <div id="pdf-template" style="font-family: 'Arial', sans-serif; color: #000; background: #fff; padding: 40px; width: 100%; max-width: 100%; box-sizing: border-box;">
+  <div id="pdf-template" style="font-family: 'Arial', sans-serif; background: #fff; color: #000; padding: 40px; width: 100%; max-width: 100%; box-sizing: border-box;">
     
-    <!-- Шапка PDF с логотипом -->
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #c9a86a; padding-bottom: 20px; margin-bottom: 30px;">
+    <!-- Шапка PDF -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #c9a86a; padding-bottom: 20px; margin-bottom: 30px;">
       <div>
+        <!-- Заголовок теперь черный -->
         <h2 style="margin: 0 0 5px; font-size: 26px; color: #000;">Коммерческое предложение</h2>
-        <p style="margin: 0; font-size: 14px; color: #666;">Комплектация интерьера (материалы)</p>
+        <p style="margin: 0; font-size: 14px; color: #555;">Комплектация интерьера (материалы)</p>
       </div>
       <div>
-        <!-- Логотип РБ -->
+        <!-- Логотип РБ (оставляем золотым, но на белом фоне он смотрится идеально) -->
         <svg width="60" height="60" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
           <rect x="10" y="10" width="480" height="480" fill="none" stroke="#c9a86a" stroke-width="8"/>
           <text x="250" y="315" font-family="Georgia, serif" font-size="180" font-weight="300" fill="#c9a86a" text-anchor="middle" letter-spacing="4">РБ</text>
@@ -126,23 +128,23 @@
     </div>
 
     <!-- Таблица PDF -->
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 30px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 30px; background: #fff; color: #000;">
       <thead>
         <tr style="background: #f8f8f8;">
-          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: left; font-weight: bold; color: #333;">Наименование</th>
-          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: right; font-weight: bold; color: #333;">Цена (₽)</th>
-          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: center; font-weight: bold; color: #333;">Кол-во</th>
-          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: center; font-weight: bold; color: #333;">Сроки</th>
-          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: right; font-weight: bold; color: #333;">Сумма (₽)</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: left; font-weight: bold; color: #000;">Наименование</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: right; font-weight: bold; color: #000;">Цена (₽)</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: center; font-weight: bold; color: #000;">Кол-во</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: center; font-weight: bold; color: #000;">Сроки</th>
+          <th style="border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; padding: 12px 10px; text-align: right; font-weight: bold; color: #000;">Сумма (₽)</th>
         </tr>
       </thead>
-      <tbody id="pdf-table-body">
-        <!-- Заполняется скриптом -->
+      <tbody id="pdf-table-body" style="background: #fff;">
+        <!-- Строки добавляются скриптом -->
       </tbody>
     </table>
 
     <!-- Итог PDF -->
-    <div style="text-align: right; font-size: 22px; font-weight: bold; border-top: 2px solid #c9a86a; padding-top: 15px; margin-bottom: 40px;">
+    <div style="text-align: right; font-size: 22px; font-weight: bold; border-top: 2px solid #c9a86a; padding-top: 15px; margin-bottom: 40px; color: #000;">
       ИТОГО К ОПЛАТЕ: <span id="pdf-total" style="color: #c9a86a;">0</span> ₽
     </div>
 
