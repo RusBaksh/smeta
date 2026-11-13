@@ -339,30 +339,63 @@
   }
 
   function downloadExcel(isClient) {
-    if (items.length === 0) return alert('Смета пуста!');
+  if (items.length === 0) return alert('Смета пуста!');
 
-    let data = [];
-    if (isClient) {
-      data = items.map((item, index) => {
-        const rowNum = index + 2;
-        return {
-          'Наименование': item.title,
-          'Цена (₽)': item.clientPrice,
-          'Кол-во': item.qty,
-          'Сроки': item.srok,
-          'Сумма (₽)': { f: `B${rowNum}*C${rowNum}` } // Формула без округления
-        };
-      });
-      data.push({
-        'Наименование': 'ИТОГО К ОПЛАТЕ:', 'Цена (₽)': '', 'Кол-во': '', 'Сроки': '', 'Сумма (₽)': { f: `SUM(E2:E${items.length + 1})` }
-      });
-      const ws = XLSX.utils.json_to_sheet(data);
-      ws['!cols'] = [{ wch: 50 }, { wch: 15 }, { wch: 10 }, { wch: 20 }, { wch: 15 }];
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "КП_Клиент");
-      XLSX.writeFile(wb, "КП_Для_Клиента.xlsx");
+  let data = [];
+  if (isClient) {
+    // ЧИСТЫЙ ФАЙЛ ДЛЯ КЛИЕНТА (теперь со ссылками)
+    data = items.map((item, index) => {
+      const rowNum = index + 2;
+      return {
+        'Наименование': item.title,
+        'Ссылка': item.url, // <--- Добавили ссылку
+        'Цена (₽)': item.clientPrice,
+        'Кол-во': item.qty,
+        'Сроки': item.srok,
+        'Сумма (₽)': { f: `C${rowNum}*D${rowNum}` }
+      };
+    });
+    data.push({
+      'Наименование': 'ИТОГО К ОПЛАТЕ:', 'Ссылка': '', 'Цена (₽)': '', 'Кол-во': '', 'Сроки': '', 'Сумма (₽)': { f: `SUM(F2:F${items.length + 1})` }
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    // Настроили ширину колонок (Ссылку сделали широкой)
+    ws['!cols'] = [{ wch: 50 }, { wch: 40 }, { wch: 15 }, { wch: 10 }, { wch: 20 }, { wch: 15 }];
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "КП_Клиент");
+    XLSX.writeFile(wb, "КП_Для_Клиента.xlsx");
 
-    } else {
+  } else {
+    // ВНУТРЕННИЙ ФАЙЛ (остается без изменений)
+    data = items.map((item, index) => {
+      const rowNum = index + 2;
+      return {
+        'Наименование': item.title,
+        'Ссылка': item.url,
+        'Цена (₽)': item.clientPrice,
+        'Маржа %': item.margin,
+        'Налог %': item.tax,
+        'Закупка (расчет)': { f: `C${rowNum}-(C${rowNum}*D${rowNum}/100)` },
+        'Кол-во': item.qty,
+        'Сроки': item.srok,
+        'Сумма клиенту': { f: `C${rowNum}*G${rowNum}` },
+        'Чистая прибыль': { f: `(I${rowNum}*D${rowNum}/100)-(I${rowNum}*E${rowNum}/100)` }
+      };
+    });
+    data.push({
+      'Наименование': 'ИТОГО:', 'Ссылка': '', 'Цена (₽)': '', 'Маржа %': '', 'Налог %': '', 'Закупка (расчет)': '', 'Кол-во': '', 'Сроки': '',
+      'Сумма клиенту': { f: `SUM(I2:I${items.length + 1})` },
+      'Чистая прибыль': { f: `SUM(J2:J${items.length + 1})` }
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Внутренняя_смета");
+    XLSX.writeFile(wb, "Смета_Внутренняя.xlsx");
+  }
+}
       data = items.map((item, index) => {
         const rowNum = index + 2;
         return {
