@@ -89,7 +89,7 @@
         <th></th>
       </tr>
     </thead>
-    <tbody id="tableBody">
+<tbody id="tableBody">
       <!-- Строки -->
     </tbody>
   </table>
@@ -162,28 +162,19 @@
   let defaultTax = 7; 
   let defaultMargin = 40; 
 
-  // Функция форматирования: если копеек нет - убирает их, если есть - оставляет точную цифру
+  // Функция для красивого вывода чисел (без копеек, с пробелами)
   function formatMoney(num) {
-    // Округляем до копеек, чтобы убрать хвосты плавающей точки
     let rounded = Math.round(num * 100) / 100;
-    
-    // Разбиваем на целую часть и копейки
     let parts = rounded.toString().split('.');
     let integerPart = parts[0];
     let decimalPart = parts[1];
-
-    // Ставим пробелы между тысячами
-  integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-
-    // Если копеек нет (или они равны .00), выводим только целое
+    integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
     if (!decimalPart || decimalPart === '00') {
       return integerPart;
     }
-    // Если копейки есть (например .50), выводим их
     return integerPart + '.' + decimalPart;
   }
-
-  async function addItem() {
+async function addItem() {
     const urlInput = document.getElementById('urlInput');
     const btn = document.getElementById('addBtn');
     const status = document.getElementById('statusMsg');
@@ -243,12 +234,10 @@
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = '';
     
-    // Считаем итоги с высокой точностью (без округления на каждом шаге)
     let totalAmount = 0;
     let totalProfit = 0;
 
     items.forEach(item => {
-      // Точное перемножение (без Math.round, чтобы не терять копейки при сложении)
       const sumClient = item.clientPrice * item.qty;
       const marginSum = sumClient * (item.margin / 100);
       const taxSum = sumClient * (item.tax / 100);
@@ -281,7 +270,7 @@
     });
 
     document.getElementById('totalAmount').innerText = formatMoney(totalAmount) + ' ₽';
-    document.getElementById('totalProfit').innerText = formatMoney(totalProfit) + ' ₽';
+document.getElementById('totalProfit').innerText = formatMoney(totalProfit) + ' ₽';
   }
 
   function updateField(id, field, value) {
@@ -339,63 +328,35 @@
   }
 
   function downloadExcel(isClient) {
-  if (items.length === 0) return alert('Смета пуста!');
+    if (items.length === 0) return alert('Смета пуста!');
 
-  let data = [];
-  if (isClient) {
-    // ЧИСТЫЙ ФАЙЛ ДЛЯ КЛИЕНТА (теперь со ссылками)
-    data = items.map((item, index) => {
-      const rowNum = index + 2;
-      return {
-        'Наименование': item.title,
-        'Ссылка': item.url, // <--- Добавили ссылку
-        'Цена (₽)': item.clientPrice,
-        'Кол-во': item.qty,
-        'Сроки': item.srok,
-        'Сумма (₽)': { f: `C${rowNum}*D${rowNum}` }
-      };
-    });
-    data.push({
-      'Наименование': 'ИТОГО К ОПЛАТЕ:', 'Ссылка': '', 'Цена (₽)': '', 'Кол-во': '', 'Сроки': '', 'Сумма (₽)': { f: `SUM(F2:F${items.length + 1})` }
-    });
-    const ws = XLSX.utils.json_to_sheet(data);
-    // Настроили ширину колонок (Ссылку сделали широкой)
-    ws['!cols'] = [{ wch: 50 }, { wch: 40 }, { wch: 15 }, { wch: 10 }, { wch: 20 }, { wch: 15 }];
-    
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "КП_Клиент");
-    XLSX.writeFile(wb, "КП_Для_Клиента.xlsx");
+    let data = [];
+    if (isClient) {
+      // ЧИСТЫЙ ФАЙЛ ДЛЯ КЛИЕНТА (Добавлена колонка со ссылкой)
+      data = items.map((item, index) => {
+        const rowNum = index + 2;
+        return {
+          'Наименование': item.title,
+          'Ссылка': item.url, // <-- Ссылка добавлена сюда
+          'Цена (₽)': item.clientPrice,
+          'Кол-во': item.qty,
+          'Сроки': item.srok,
+          'Сумма (₽)': { f: `C${rowNum}*D${rowNum}` } // Сумма сместилась на колонку F из-за ссылки
+        };
+      });
+      data.push({
+        'Наименование': 'ИТОГО К ОПЛАТЕ:', 'Ссылка': '', 'Цена (₽)': '', 'Кол-во': '', 'Сроки': '', 'Сумма (₽)': { f: `SUM(F2:F${items.length + 1})` }
+      });
+      const ws = XLSX.utils.json_to_sheet(data);
+      // Настроили ширину: Наименование (50), Ссылка (40), Цена (15), Кол-во (10), Сроки (20), Сумма (15)
+      ws['!cols'] = [{ wch: 50 }, { wch: 40 }, { wch: 15 }, { wch: 10 }, { wch: 20 }, { wch: 15 }];
+      
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "КП_Клиент");
+      XLSX.writeFile(wb, "КП_Для_Клиента.xlsx");
 
-  } else {
-    // ВНУТРЕННИЙ ФАЙЛ (остается без изменений)
-    data = items.map((item, index) => {
-      const rowNum = index + 2;
-      return {
-        'Наименование': item.title,
-        'Ссылка': item.url,
-        'Цена (₽)': item.clientPrice,
-        'Маржа %': item.margin,
-        'Налог %': item.tax,
-        'Закупка (расчет)': { f: `C${rowNum}-(C${rowNum}*D${rowNum}/100)` },
-        'Кол-во': item.qty,
-        'Сроки': item.srok,
-        'Сумма клиенту': { f: `C${rowNum}*G${rowNum}` },
-        'Чистая прибыль': { f: `(I${rowNum}*D${rowNum}/100)-(I${rowNum}*E${rowNum}/100)` }
-      };
-    });
-    data.push({
-      'Наименование': 'ИТОГО:', 'Ссылка': '', 'Цена (₽)': '', 'Маржа %': '', 'Налог %': '', 'Закупка (расчет)': '', 'Кол-во': '', 'Сроки': '',
-      'Сумма клиенту': { f: `SUM(I2:I${items.length + 1})` },
-      'Чистая прибыль': { f: `SUM(J2:J${items.length + 1})` }
-    });
-    const ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
-    
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Внутренняя_смета");
-    XLSX.writeFile(wb, "Смета_Внутренняя.xlsx");
-  }
-}
+    } else {
+      // ВНУТРЕННИЙ ФАЙЛ (без изменений)
       data = items.map((item, index) => {
         const rowNum = index + 2;
         return {
@@ -412,12 +373,13 @@
         };
       });
       data.push({
-        'Наименование': 'ИТОГО:', 'Ссылка': '', 'Цена (₽)': '', 'Маржа %': '', 'Налог %': '', 'Закупка (расчет)': '', 'Кол-во': '', 'Сроки': '',
+'Наименование': 'ИТОГО:', 'Ссылка': '', 'Цена (₽)': '', 'Маржа %': '', 'Налог %': '', 'Закупка (расчет)': '', 'Кол-во': '', 'Сроки': '',
         'Сумма клиенту': { f: `SUM(I2:I${items.length + 1})` },
         'Чистая прибыль': { f: `SUM(J2:J${items.length + 1})` }
       });
       const ws = XLSX.utils.json_to_sheet(data);
       ws['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+      
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Внутренняя_смета");
       XLSX.writeFile(wb, "Смета_Внутренняя.xlsx");
